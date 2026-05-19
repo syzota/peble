@@ -11,7 +11,7 @@ const pool = mysql.createPool({
   host: "localhost",
   user: "root",
   password: "",
-  database: "bem_hoaks",
+  database: "bimbim",
   waitForConnections: true,
   connectionLimit: 10,
 });
@@ -29,6 +29,11 @@ async function startServer() {
   const PORT = 3000;
 
   app.use(express.json());
+
+  app.use((req, res, next) => {
+  console.log(`[Request] ${req.method} ${req.url}`);
+  next();
+  });
 
   // ══════════════════════════════════════════════════════════════════════════
   // AUTH
@@ -122,17 +127,17 @@ async function startServer() {
       const { kategori, topik, status, q: search } = req.query as Record<string,string>;
       let sql = `
         SELECT fh.id_fact_hoaks, fh.tahun,
-               b.id_berita, b.judul, b.excerpt, b.isi, b.author, b.link, b.main_image_url, b.view_count,
-               k.kategori, s.sumber, t.topics, sh.status_hoaks, w.tanggal, tg.nama_tag
+              b.id_berita, b.judul, b.excerpt, b.isi, b.author, b.link, b.main_image_url, b.view_count,
+              k.kategori, s.sumber, t.topics, sh.status_hoaks, w.tanggal, tg.nama_tag
         FROM fact_hoaks fh
-        LEFT JOIN dim_berita b ON fh.id_berita=b.id_berita
+        JOIN dim_berita b ON fh.id_berita=b.id_berita  -- <-- Ubah LEFT JOIN menjadi JOIN di sini
         LEFT JOIN dim_kategori k ON fh.id_kategori=k.id_kategori
         LEFT JOIN dim_sumber s ON fh.id_sumber=s.id_sumber
         LEFT JOIN dim_topik t ON fh.id_topik=t.id_topik
         LEFT JOIN dim_status_hoaks sh ON fh.id_status_hoaks=sh.id_status_hoaks
         LEFT JOIN dim_waktu w ON fh.id_waktu=w.id_waktu
         LEFT JOIN dim_tag tg ON fh.id_tag=tg.id_tag
-        WHERE 1=1
+        WHERE b.judul IS NOT NULL AND TRIM(b.judul) != ''
       `;
       const params: unknown[] = [];
       if (kategori) { sql += " AND k.id_kategori=?";    params.push(kategori); }
@@ -156,9 +161,42 @@ async function startServer() {
       const [[{ totalHoaks }]] = await pool.query("SELECT COUNT(*) AS totalHoaks FROM fact_hoaks") as [Record<string,number>[], unknown];
       const [[{ verified }]]   = await pool.query(`SELECT COUNT(*) AS verified FROM fact_hoaks fh JOIN dim_status_hoaks sh ON fh.id_status_hoaks=sh.id_status_hoaks WHERE sh.status_hoaks='Verifikasi'`) as [Record<string,number>[], unknown];
       const [[{ hoaks }]]      = await pool.query(`SELECT COUNT(*) AS hoaks FROM fact_hoaks fh JOIN dim_status_hoaks sh ON fh.id_status_hoaks=sh.id_status_hoaks WHERE sh.status_hoaks='Hoaks'`) as [Record<string,number>[], unknown];
-      const topSumber  = await q(`SELECT s.sumber, COUNT(*) AS jumlah FROM fact_hoaks fh JOIN dim_sumber s ON fh.id_sumber=s.id_sumber GROUP BY fh.id_sumber ORDER BY jumlah DESC LIMIT 5`);
-      const topTopik   = await q(`SELECT t.topics, COUNT(*) AS jumlah FROM fact_hoaks fh JOIN dim_topik t ON fh.id_topik=t.id_topik GROUP BY fh.id_topik ORDER BY jumlah DESC LIMIT 5`);
-      const topKategori= await q(`SELECT k.kategori, COUNT(*) AS jumlah FROM fact_hoaks fh JOIN dim_kategori k ON fh.id_kategori=k.id_kategori GROUP BY fh.id_kategori ORDER BY jumlah DESC LIMIT 5`);
+      // Ubah query topTopikRaw:
+      const topTopikRaw = await q(`
+        SELECT dt.topics, COUNT(*) AS jumlah
+        FROM fact_hoaks fh
+        JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        GROUP BY dt.id_topik, dt.topics
+        ORDER BY jumlah DESC LIMIT 5
+      `);
+
+      // --- Di dalam route /api/report/summary ---
+      // Ubah topSumber:
+      const topSumber = await q(`
+        SELECT s.sumber, COUNT(*) AS jumlah
+        FROM fact_hoaks fh
+        JOIN dim_sumber s ON fh.id_sumber = s.id_sumber
+        GROUP BY s.id_sumber, s.sumber
+        ORDER BY jumlah DESC LIMIT 5
+      `);
+
+      // Ubah topTopik:
+      const topTopik = await q(`
+        SELECT t.topics, COUNT(*) AS jumlah
+        FROM fact_hoaks fh
+        JOIN dim_topik t ON fh.id_topik = t.id_topik
+        GROUP BY t.id_topik, t.topics
+        ORDER BY jumlah DESC LIMIT 5
+      `);
+
+      // Ubah topKategori:
+      const topKategori = await q(`
+        SELECT k.kategori, COUNT(*) AS jumlah
+        FROM fact_hoaks fh
+        JOIN dim_kategori k ON fh.id_kategori = k.id_kategori
+        GROUP BY k.id_kategori, k.kategori
+        ORDER BY jumlah DESC LIMIT 5
+      `);
       const trenTahun  = await q(`SELECT tahun, COUNT(*) AS total FROM fact_hoaks GROUP BY tahun ORDER BY tahun DESC LIMIT 5`);
       const [[{ lastUpdate }]] = await pool.query("SELECT MAX(tanggal) AS lastUpdate FROM dim_waktu") as [Record<string,unknown>[], unknown];
       res.json({ totalHoaks, verified, hoaks, topSumber, topTopik, topKategori, trenTahun, lastUpdate });
@@ -287,24 +325,140 @@ async function startServer() {
   // HEALTH CHECK
   // ══════════════════════════════════════════════════════════════════════════
   app.get("/api/health", (_req, res) => res.json({ status: "ok" }));
+// ══════════════════════════════════════════════════════════════════════════
 
+  // ── /api/dashboard/summary ───────────────────────────────────
+  app.get("/api/dashboard/summary", async (_req, res) => {
+    try {
+      const [[{ totalHoaks }]]    = await pool.query("SELECT COUNT(*) AS totalHoaks FROM fact_hoaks") as [Record<string,number>[], unknown];
+      const [[{ aktivBulanIni }]] = await pool.query(`
+        SELECT COUNT(*) AS aktivBulanIni FROM fact_hoaks fh
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.bulan = MONTH(NOW()) AND dw.tahun = YEAR(NOW())`) as [Record<string,number>[], unknown];
+      const [[{ aktivBulanLalu }]] = await pool.query(`
+        SELECT COUNT(*) AS aktivBulanLalu FROM fact_hoaks fh
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.bulan = MONTH(NOW() - INTERVAL 1 MONTH)
+          AND dw.tahun = YEAR(NOW() - INTERVAL 1 MONTH)`) as [Record<string,number>[], unknown];
+      const [[{ hoaksTerverif }]] = await pool.query(`
+        SELECT COUNT(*) AS hoaksTerverif FROM fact_hoaks fh
+        JOIN dim_status_hoaks ds ON fh.id_status_hoaks = ds.id_status_hoaks
+        WHERE ds.status_hoaks = 'Hoaks'`) as [Record<string,number>[], unknown];
+      const [[{ jumlahSumber }]] = await pool.query(
+        "SELECT COUNT(DISTINCT id_sumber) AS jumlahSumber FROM fact_hoaks") as [Record<string,number>[], unknown];
+      const [[{ firstYear }]] = await pool.query(
+        "SELECT MIN(tahun) AS firstYear FROM fact_hoaks") as [Record<string,number>[], unknown];
+
+      const trenTahunRaw = await q(`SELECT tahun, COUNT(*) AS total FROM fact_hoaks GROUP BY tahun ORDER BY tahun ASC`);
+      const trenTahun = trenTahunRaw.map(t => ({ tahun: t.tahun, total: Number(t.total) }));
+
+      const statusDistribusi = await q(`
+        SELECT ds.status_hoaks, COUNT(*) AS jumlah
+        FROM fact_hoaks fh JOIN dim_status_hoaks ds ON fh.id_status_hoaks = ds.id_status_hoaks
+        GROUP BY ds.status_hoaks ORDER BY jumlah DESC`);
+
+      const topTopikRaw = await q(`
+        SELECT dt.topics, COUNT(*) AS jumlah
+        FROM fact_hoaks fh JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        GROUP BY dt.id_topik, dt.topics ORDER BY jumlah DESC LIMIT 5`);
+
+      const recent7d = await q(`
+        SELECT dt.topics, COUNT(*) AS count7d
+        FROM fact_hoaks fh
+        JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.tanggal IS NOT NULL AND dw.tanggal >= NOW() - INTERVAL 7 DAY
+        GROUP BY dt.topics`);
+
+      const monthly = await q(`
+        SELECT dt.topics, COUNT(*) / 12 AS monthlyAvg
+        FROM fact_hoaks fh
+        JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.tanggal >= NOW() - INTERVAL 12 MONTH
+        GROUP BY dt.topics`);
+
+      const avgMap    = Object.fromEntries(monthly.map(r => [r.topics, parseFloat(String(r.monthlyAvg)) || 0]));
+      const recentMap = Object.fromEntries(recent7d.map(r => [r.topics, Number(r.count7d)]));
+
+      const topTopik = topTopikRaw.map(t => ({
+        topics:    t.topics,
+        jumlah:    Number(t.jumlah),
+        isAnomaly: (recentMap[String(t.topics)] ?? 0) > (avgMap[String(t.topics)] ?? 0) * 1.5,
+      }));
+
+      res.json({
+        totalHoaks: Number(totalHoaks), aktivBulanIni: Number(aktivBulanIni),
+        deltaBulan: Number(aktivBulanIni) - Number(aktivBulanLalu),
+        hoaksTerverif: Number(hoaksTerverif), jumlahSumber: Number(jumlahSumber),
+        firstYear: Number(firstYear), trenTahun, statusDistribusi, topTopik,
+      });
+    } catch (e: unknown) { console.error('[/api/dashboard/summary]', e); res.status(500).json({ error: (e as Error).message }); }
+  });
+
+  // ── /api/dashboard/anomalies ─────────────────────────────────
+  app.get("/api/dashboard/anomalies", async (_req, res) => {
+    try {
+      const recent7d = await q(`
+        SELECT dt.topics AS topik, COUNT(*) AS count7d
+        FROM fact_hoaks fh
+        JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.tanggal >= NOW() - INTERVAL 7 DAY
+        GROUP BY dt.topics`);
+
+      const monthly = await q(`
+        SELECT dt.topics AS topik, COUNT(*) / 12 AS monthlyAvg
+        FROM fact_hoaks fh
+        JOIN dim_topik dt ON fh.id_topik = dt.id_topik
+        JOIN dim_waktu dw ON fh.id_waktu = dw.id_waktu
+        WHERE dw.tanggal >= NOW() - INTERVAL 12 MONTH
+        GROUP BY dt.topics`);
+
+      const avgMap = Object.fromEntries(monthly.map(r => [r.topik, parseFloat(String(r.monthlyAvg)) || 1]));
+
+      const anomalies = recent7d
+        .map(r => {
+          const avg   = avgMap[String(r.topik)] || 1;
+          const ratio = Number(r.count7d) / avg;
+          const level = ratio > 2 ? 'danger' : ratio > 1.5 ? 'warning' : null;
+          return { topik: r.topik, count7d: Number(r.count7d), monthlyAvg: avg, ratio, level };
+        })
+        .filter(r => r.level !== null)
+        .sort((a, b) => b.ratio - a.ratio);
+
+      res.json(anomalies);
+    } catch (e: unknown) { console.error('[/api/dashboard/anomalies]', e); res.status(500).json({ error: (e as Error).message }); }
+  });
+
+  // ── /api/dashboard/recent ────────────────────────────────────
+  app.get("/api/dashboard/recent", async (req, res) => {
+    try {
+      const limit = Math.min(parseInt(String(req.query.limit)) || 5, 20);
+      const rows = await q(`
+        SELECT fh.id_fact_hoaks, b.judul, b.author, b.link, b.main_image_url, b.excerpt,
+              dw.tanggal, ds.status_hoaks, dk.kategori, dt.topics, ds2.sumber
+        FROM fact_hoaks fh
+        JOIN dim_berita       b   ON fh.id_berita       = b.id_berita
+        JOIN dim_waktu        dw  ON fh.id_waktu        = dw.id_waktu
+        JOIN dim_status_hoaks ds  ON fh.id_status_hoaks = ds.id_status_hoaks
+        JOIN dim_kategori     dk  ON fh.id_kategori     = dk.id_kategori
+        JOIN dim_topik        dt  ON fh.id_topik        = dt.id_topik
+        JOIN dim_sumber       ds2 ON fh.id_sumber       = ds2.id_sumber
+        ORDER BY dw.tanggal DESC LIMIT ?`, [limit]);
+      res.json(rows);
+    } catch (e: unknown) { console.error('[/api/dashboard/recent]', e); res.status(500).json({ error: (e as Error).message }); }
+  });
+  // VITE DEV MIDDLEWARE (Ini harus di akhir)
   // ══════════════════════════════════════════════════════════════════════════
-  // VITE DEV MIDDLEWARE (atau static di production)
-  // ══════════════════════════════════════════════════════════════════════════
-  if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: "spa",
-    });
-    app.use(vite.middlewares);
-  } else {
+  if (process.env.NODE_ENV === "production") {
     const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*", (_req, res) => res.sendFile(path.join(distPath, "index.html")));
   }
 
   app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server (Vite + API) jalan di http://localhost:${PORT}`);
+    console.log(`Server jalan di port ${PORT}`);
   });
 }
 

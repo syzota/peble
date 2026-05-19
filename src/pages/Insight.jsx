@@ -1,265 +1,420 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { motion } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
-import { Search, Filter, Zap, ArrowLeft, X, ExternalLink } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import {
+  Search, Filter, ChevronDown, ExternalLink,
+  Grid2X2, List, Calendar, Tag, Hash, AlertTriangle, Info, X, XCircle
+} from 'lucide-react';
 
-const API = '';
+const T = {
+  blue:    '#185FA5',
+  blueLt:  '#E6F1FB',
+  blueMid: '#B5D4F4',
+  red:     '#E24B4A',
+  redLt:   '#FCEBEB',
+  amber:   '#EF9F27',
+  amberLt: '#FAEEDA',
+  green:   '#1D9E75',
+  greenLt: '#E1F5EE',
+  gray:    '#888780',
+  grayLt:  '#F1EFE8',
+  text:    '#1a1a1a',
+  muted:   '#888780',
+  border:  'rgba(183,212,244,0.5)',
+  glass:   'rgba(255,255,255,0.72)',
+};
+
+const STATUS_CFG = {
+  'Hoaks':      { bg: '#FCEBEB', text: '#791F1F', dot: '#E24B4A' },
+  'Fakta':      { bg: '#E1F5EE', text: '#085041', dot: '#1D9E75' },
+  'Verifikasi': { bg: '#FAEEDA', text: '#633806', dot: '#EF9F27' },
+  'Unknown':    { bg: '#F1EFE8', text: '#444441', dot: '#888780' },
+};
+
+// Komponen Tombol Baru Sesuai Request
+const GradientButton = ({ onClick, children, className = "", icon: Icon }) => (
+  <button onClick={onClick}
+    className={`relative bg-[#185FA5] text-white text-xs font-semibold px-4 py-2.5 rounded-[12px] shadow-sm hover:shadow-md transition-all overflow-hidden ${className}`}>
+    <div className="absolute w-[80%] h-4 left-[10%] top-[1px] bg-gradient-to-b from-[#DEF0FC] to-transparent rounded-[12px] opacity-40 pointer-events-none" />
+    <span className="relative z-10 flex items-center justify-center gap-2">
+      {children}
+      {Icon && <Icon className="w-4 h-4" />}
+    </span>
+  </button>
+);
+
+const StatusBadge = ({ status }) => {
+  const cfg = STATUS_CFG[status] || STATUS_CFG['Unknown'];
+  return (
+    <span className="text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full"
+      style={{ background: cfg.bg, color: cfg.text }}>
+      {status}
+    </span>
+  );
+};
+
+const FilterPill = ({ value, onChange, options, placeholder, icon }) => {
+  const isActive = !!value;
+  return (
+    <div className="relative group">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none z-10"
+        style={{ color: isActive ? '#fff' : T.muted }}>
+        {icon}
+      </div>
+      <select value={value} onChange={e => onChange(e.target.value)}
+        className="appearance-none text-xs font-medium pl-9 pr-9 py-2.5 rounded-[12px] outline-none cursor-pointer transition-all relative overflow-hidden shadow-sm"
+        style={{
+          background: isActive ? T.blue : '#ffffff',
+          color: isActive ? '#fff' : T.text,
+          border: `1px solid ${isActive ? T.blue : '#E2E8F0'}`,
+        }}>
+        <option value="">{placeholder}</option>
+        {options.map(o => (
+          <option key={o.value} value={o.value} style={{ background: '#fff', color: T.text }}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      {/* Efek gradient di dalam dropdown jika aktif */}
+      {isActive && (
+        <div className="absolute w-[80%] h-4 left-[10%] top-[1px] bg-gradient-to-b from-[#DEF0FC] to-transparent rounded-[12px] opacity-30 pointer-events-none" />
+      )}
+      <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none z-10"
+        style={{ color: isActive ? '#fff' : T.muted }} />
+    </div>
+  );
+};
+
+const SkeletonCard = () => (
+  <div className="rounded-3xl p-5 h-[400px] animate-pulse"
+    style={{ background: T.glass, border: `1px solid #E2E8F0` }}>
+    <div className="rounded-2xl mb-5 h-44 bg-slate-200" />
+    <div className="h-3 rounded w-1/3 mb-3 bg-slate-200" />
+    <div className="h-5 rounded w-full mb-2 bg-slate-200" />
+    <div className="h-5 rounded w-2/3 bg-slate-200" />
+  </div>
+);
+
+const InsightGridCard = ({ item, onClick }) => {
+  const cfg = STATUS_CFG[item.status_hoaks] || STATUS_CFG['Unknown'];
+  return (
+    <motion.div layout
+      initial={{ opacity: 0, scale: 0.96, y: 10 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96 }}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      onClick={() => onClick(item)}
+      className="rounded-3xl overflow-hidden flex flex-col h-full group cursor-pointer shadow-sm hover:shadow-md transition-shadow bg-white"
+      style={{ border: `1px solid #E2E8F0` }}
+    >
+      <div className="relative aspect-video overflow-hidden" style={{ background: T.blueLt }}>
+        {item.main_image_url
+          ? <img src={item.main_image_url} alt={item.judul}
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+          : <div className="w-full h-full flex items-center justify-center" style={{ color: T.blueMid }}>
+              <Info className="w-10 h-10" />
+            </div>
+        }
+        <div className="absolute top-3 left-3">
+          <StatusBadge status={item.status_hoaks} />
+        </div>
+        <div className="absolute top-3 right-3 w-2 h-2 rounded-full" style={{ background: cfg.dot }} />
+      </div>
+
+      <div className="p-5 flex flex-col flex-1">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full"
+            style={{ background: T.blueLt, color: T.blue }}>
+            {item.kategori}
+          </span>
+          <span className="text-[9px] font-bold uppercase tracking-widest flex items-center gap-1" style={{ color: T.muted }}>
+            <Calendar className="w-2.5 h-2.5" />
+            {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+          </span>
+        </div>
+
+        <h3 className="text-base font-semibold line-clamp-2 mb-3 flex-1 leading-snug group-hover:text-[#185FA5] transition-colors"
+          style={{ color: T.text }}>
+          {item.judul}
+        </h3>
+
+        <p className="text-xs line-clamp-2 mb-5" style={{ color: T.muted, lineHeight: 1.6 }}>
+          {item.excerpt}
+        </p>
+
+        <div className="flex items-center justify-between pt-4 border-t border-slate-100">
+          <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: T.muted }}>
+            {item.author}
+          </span>
+          <span className="text-[10px] font-bold text-[#185FA5] group-hover:underline">
+            Lihat Detail
+          </span>
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+const InsightListCard = ({ item, onClick }) => {
+  return (
+    <motion.div layout
+      initial={{ opacity: 0, x: -10 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -10 }}
+      onClick={() => onClick(item)}
+      className="rounded-2xl p-4 flex items-center gap-4 group cursor-pointer transition-all hover:shadow-md bg-white border border-slate-200"
+    >
+      <div className="w-24 aspect-video rounded-xl overflow-hidden shrink-0" style={{ background: T.blueLt }}>
+        {item.main_image_url
+          ? <img src={item.main_image_url} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="" />
+          : <div className="w-full h-full flex items-center justify-center" style={{ color: T.blueMid }}>
+              <Info className="w-5 h-5" />
+            </div>
+        }
+      </div>
+
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1.5">
+          <StatusBadge status={item.status_hoaks} />
+          <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: T.muted }}>
+            {item.kategori} · {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+          </span>
+        </div>
+        <h3 className="text-sm font-semibold line-clamp-1 group-hover:text-[#185FA5] transition-colors" style={{ color: T.text }}>
+          {item.judul}
+        </h3>
+      </div>
+
+      <div className="flex items-center gap-4 shrink-0">
+        <span className="text-[10px] font-bold uppercase tracking-widest" style={{ color: T.muted }}>
+          {item.author}
+        </span>
+        <div className="p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all bg-[#E6F1FB] text-[#185FA5]">
+          <ExternalLink className="w-3.5 h-3.5" />
+        </div>
+      </div>
+    </motion.div>
+  );
+};
+
+// --- Komponen Pop-Up Modal ---
+const DetailModal = ({ item, onClose }) => {
+  if (!item) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0, y: 20 }}
+        animate={{ scale: 1, opacity: 1, y: 0 }}
+        exit={{ scale: 0.95, opacity: 0, y: 20 }}
+        onClick={e => e.stopPropagation()}
+        className="bg-white w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]"
+      >
+        {/* Modal Close Button */}
+        <button onClick={onClose} className="absolute top-4 right-4 z-10 p-2 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-colors">
+          <X className="w-5 h-5" />
+        </button>
+
+        {/* Modal Image */}
+        <div className="w-full h-64 bg-slate-100 relative shrink-0">
+          {item.main_image_url ? (
+            <img src={item.main_image_url} alt={item.judul} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-400">
+              <Info className="w-12 h-12" />
+            </div>
+          )}
+        </div>
+
+        {/* Modal Content Scrollable */}
+        <div className="p-6 overflow-y-auto flex-1">
+          <div className="flex items-center gap-2 mb-4">
+            <StatusBadge status={item.status_hoaks} />
+            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+              {item.kategori} · {new Date(item.tanggal).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+            </span>
+          </div>
+
+          <h2 className="text-xl md:text-2xl font-bold text-slate-900 mb-4 leading-tight">
+            {item.judul}
+          </h2>
+
+          <div className="prose prose-sm text-slate-600 mb-6">
+            <p className="whitespace-pre-line leading-relaxed">{item.excerpt || "Tidak ada deskripsi detail tersedia untuk berita ini."}</p>
+          </div>
+
+          <div className="border-t border-slate-100 pt-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400 mb-1">Sumber / Author</p>
+              <p className="text-sm font-semibold text-slate-800">{item.author || "Tidak Diketahui"}</p>
+            </div>
+
+            <a href={item.link} target="_blank" rel="noopener noreferrer" className="block">
+               <GradientButton icon={ExternalLink}>
+                 Kunjungi Sumber Asli
+               </GradientButton>
+            </a>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
 
 const Insight = () => {
-  const navigate = useNavigate();
-  const [data, setData]           = useState([]);
-  const [loading, setLoading]     = useState(true);
-  const [searchTerm, setSearch]   = useState('');
-  const [filterOpen, setFilter]   = useState(false);
-  const [kategoriList, setKategori] = useState([]);
-  const [topikList, setTopik]     = useState([]);
-  const [statusList, setStatus]   = useState([]);
-  const [selectedKat, setSelKat]  = useState('');
-  const [selectedTopik, setSelTopik] = useState('');
-  const [selectedStatus, setSelStatus] = useState('');
+  const [data, setData]         = useState([]);
+  const [loading, setLoading]   = useState(true);
+  const [view, setView]         = useState('grid');
+  const [search, setSearch]     = useState('');
+  const [kategori, setKategori] = useState('');
+  const [topik, setTopik]       = useState('');
+  const [status, setStatus]     = useState('');
 
-  // Fetch dimension lists for filters
+  const [kategoriOpts, setKategoriOpts] = useState([]);
+  const [topikOpts, setTopikOpts]       = useState([]);
+  const [statusOpts, setStatusOpts]     = useState([]);
+
+  // State untuk Pop-up Detail
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  const hasFilter = search || kategori || topik || status;
+
   useEffect(() => {
     Promise.all([
-      fetch(`${API}/api/dim_kategori`).then(r => r.json()),
-      fetch(`${API}/api/dim_topik`).then(r => r.json()),
-      fetch(`${API}/api/dim_status_hoaks`).then(r => r.json()),
+      fetch('/api/dim_kategori').then(r => r.json()).catch(() => []),
+      fetch('/api/dim_topik').then(r => r.json()).catch(() => []),
+      fetch('/api/dim_status_hoaks').then(r => r.json()).catch(() => []),
     ]).then(([k, t, s]) => {
-      setKategori(k);
-      setTopik(t);
-      setStatus(s);
+      if(k.length) setKategoriOpts(k.map(o => ({ value: o.id_kategori, label: o.kategori })));
+      if(t.length) setTopikOpts(t.map(o => ({ value: o.id_topik, label: o.topics })));
+      if(s.length) setStatusOpts(s.map(o => ({ value: o.id_status_hoaks, label: o.status_hoaks })));
     }).catch(console.error);
   }, []);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      if (searchTerm)     params.set('q', searchTerm);
-      if (selectedKat)    params.set('kategori', selectedKat);
-      if (selectedTopik)  params.set('topik', selectedTopik);
-      if (selectedStatus) params.set('status', selectedStatus);
-      const res = await fetch(`${API}/api/insight?${params}`);
-      const rows = await res.json();
-      setData(rows);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  }, [searchTerm, selectedKat, selectedTopik, selectedStatus]);
-
   useEffect(() => {
-    const t = setTimeout(fetchData, 300);
-    return () => clearTimeout(t);
-  }, [fetchData]);
+    const timer = setTimeout(async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (search)   params.append('q', search);
+        if (kategori) params.append('kategori', kategori);
+        if (topik)    params.append('topik', topik);
+        if (status)   params.append('status', status);
 
-  const clearFilters = () => {
-    setSelKat('');
-    setSelTopik('');
-    setSelStatus('');
-    setFilter(false);
-  };
+        const res = await fetch(`/api/insight?${params.toString()}`);
+        const result = await res.json();
 
-  const hasFilter = selectedKat || selectedTopik || selectedStatus;
+        // Memastikan yang diset ke state adalah array untuk mencegah error mapping
+        setData(Array.isArray(result) ? result : []);
+      } catch (e) {
+        console.error(e);
+        setData([]);
+      } finally {
+        setLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search, kategori, topik, status]);
 
-  const statusBadge = (s) => {
-    if (!s) return 'bg-white/10 text-white/40';
-    if (s === 'Hoaks')      return 'bg-red-500/20 text-red-400';
-    if (s === 'Verifikasi') return 'bg-green-500/20 text-green-400';
-    return 'bg-yellow-500/20 text-yellow-400';
-  };
-
-  const formatDate = (raw) => {
-    if (!raw) return '-';
-    return new Date(raw).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
-  };
+  const clearFilters = () => { setSearch(''); setKategori(''); setTopik(''); setStatus(''); };
 
   return (
-    <div className="min-h-screen bg-black text-white p-6 pb-32">
-      {/* Header */}
-      <header className="flex items-center gap-4 mb-10 mt-4">
-        <button
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-full liquid-glass flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-white/60 hover:text-white"
-        >
-          <ArrowLeft className="w-5 h-5" />
-        </button>
-        <div>
-          <h1 className="text-2xl font-heading italic">Deep Insights</h1>
-          <p className="text-white/40 font-body text-sm">
-            {loading ? 'Memuat...' : `${data.length} entri ditemukan`}
-          </p>
-        </div>
-      </header>
+    <div className="space-y-6 pb-24 md:pb-10">
+      {/* Header Controls (Teks Judul & Database Count Dihilangkan) */}
+      <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="pt-2">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
 
-      {/* Search & Filter */}
-      <div className="flex gap-3 mb-6">
-        <div className="flex-1 relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
-          <input
-            type="text"
-            placeholder="Cari judul, isi, topik..."
-            value={searchTerm}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl py-4 pl-12 pr-6 text-sm focus:outline-none focus:border-white/30 transition-all font-body"
-          />
-        </div>
-        <button
-          onClick={() => setFilter(!filterOpen)}
-          className={`p-4 rounded-2xl border transition-all ${hasFilter ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-white/40 hover:text-white'}`}
-        >
-          <Filter className="w-5 h-5" />
-        </button>
-      </div>
+          <div className="flex flex-wrap items-center gap-3 flex-1">
+            <FilterPill value={kategori} onChange={setKategori} options={kategoriOpts} placeholder="Semua Kategori" icon={<Tag className="w-3.5 h-3.5" />} />
+            <FilterPill value={topik} onChange={setTopik} options={topikOpts} placeholder="Semua Topik" icon={<Hash className="w-3.5 h-3.5" />} />
+            <FilterPill value={status} onChange={setStatus} options={statusOpts} placeholder="Semua Status" icon={<AlertTriangle className="w-3.5 h-3.5" />} />
 
-      {/* Filter Panel */}
-      {filterOpen && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="liquid-glass rounded-[2rem] border border-white/10 p-6 mb-6 grid grid-cols-1 md:grid-cols-3 gap-4"
-        >
-          <div>
-            <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 block">Kategori</label>
-            <select
-              value={selectedKat}
-              onChange={e => setSelKat(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30"
-            >
-              <option value="">Semua Kategori</option>
-              {kategoriList.map(k => (
-                <option key={k.id_kategori} value={k.id_kategori}>{k.kategori}</option>
-              ))}
-            </select>
+            {hasFilter && (
+               <GradientButton onClick={clearFilters} icon={XCircle} className="!px-3 bg-slate-700 hover:bg-slate-800">
+                 Reset Filter
+               </GradientButton>
+            )}
           </div>
-          <div>
-            <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 block">Topik</label>
-            <select
-              value={selectedTopik}
-              onChange={e => setSelTopik(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30"
-            >
-              <option value="">Semua Topik</option>
-              {topikList.map(t => (
-                <option key={t.id_topik} value={t.id_topik}>{t.topics}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-[10px] font-bold text-white/40 uppercase tracking-widest mb-2 block">Status</label>
-            <select
-              value={selectedStatus}
-              onChange={e => setSelStatus(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:outline-none focus:border-white/30"
-            >
-              <option value="">Semua Status</option>
-              {statusList.map(s => (
-                <option key={s.id_status_hoaks} value={s.id_status_hoaks}>{s.status_hoaks}</option>
-              ))}
-            </select>
-          </div>
-          <div className="md:col-span-3 flex justify-end">
-            <button
-              onClick={clearFilters}
-              className="flex items-center gap-2 text-xs text-white/40 hover:text-white transition-colors"
-            >
-              <X className="w-4 h-4" /> Reset Filter
-            </button>
-          </div>
-        </motion.div>
-      )}
 
-      {/* Category Pills (topik quick filter) */}
-      <div className="flex items-center gap-3 overflow-x-auto pb-4 no-scrollbar mb-8">
-        <button
-          onClick={() => setSelTopik('')}
-          className={`px-5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${!selectedTopik ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white'}`}
-        >
-          Semua
-        </button>
-        {topikList.map(t => (
-          <button
-            key={t.id_topik}
-            onClick={() => setSelTopik(String(t.id_topik))}
-            className={`px-5 py-2 rounded-full text-xs font-medium whitespace-nowrap transition-all ${selectedTopik === String(t.id_topik) ? 'bg-white text-black' : 'bg-white/5 border border-white/10 text-white/40 hover:text-white'}`}
-          >
-            {t.topics}
-          </button>
-        ))}
-      </div>
-
-      {/* Cards */}
-      <div className="space-y-5">
-        {loading ? (
-          <div className="py-20 text-center">
-            <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-white/20 text-sm">Memuat data...</p>
-          </div>
-        ) : data.length === 0 ? (
-          <div className="py-20 text-center text-white/20">
-            <Zap className="w-10 h-10 mx-auto mb-4 opacity-30" />
-            <p className="text-sm">Tidak ada data ditemukan.</p>
-          </div>
-        ) : data.map((item, i) => (
-          <motion.div
-            key={item.id_fact_hoaks}
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: Math.min(i * 0.05, 0.5) }}
-            className="liquid-glass p-6 rounded-[2rem] border border-white/5 hover:border-white/20 transition-all"
-          >
-            <div className="flex items-start justify-between mb-4 gap-4">
-              <div className="bg-white/10 p-3 rounded-2xl shrink-0">
-                <Zap className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                {item.status_hoaks && (
-                  <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg ${statusBadge(item.status_hoaks)}`}>
-                    {item.status_hoaks}
-                  </span>
-                )}
-                {item.kategori && (
-                  <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 bg-white/5 text-white/40 rounded-lg">
-                    {item.kategori}
-                  </span>
-                )}
-                {item.topics && (
-                  <span className="text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 bg-white/5 text-white/30 rounded-lg">
-                    {item.topics}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            <h3 className="text-lg font-heading italic text-white mb-2">{item.judul}</h3>
-            <p className="text-sm font-body text-white/60 leading-relaxed line-clamp-2">
-              {item.excerpt || item.isi}
-            </p>
-
-            <div className="mt-5 flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-4 text-[10px] text-white/30 uppercase tracking-widest font-bold">
-                <span>{item.author || 'Tim PRK'}</span>
-                {item.sumber && <span>· {item.sumber}</span>}
-                {item.tanggal && <span>· {formatDate(item.tanggal)}</span>}
-                {item.nama_tag && <span>· {item.nama_tag}</span>}
-              </div>
-              {item.link && (
-                <a
-                  href={item.link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  onClick={e => e.stopPropagation()}
-                  className="flex items-center gap-1.5 text-[10px] text-white/30 hover:text-white transition-colors uppercase tracking-widest font-bold"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  Sumber
-                </a>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="relative group">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 transition-colors"
+                style={{ color: search ? T.blue : T.muted }} />
+              <input type="text" placeholder="Cari berita atau isu..."
+                value={search} onChange={e => setSearch(e.target.value)}
+                className="text-sm pl-11 pr-10 py-2.5 rounded-[12px] outline-none w-64 transition-all bg-white"
+                style={{ border: `1px solid ${search ? T.blue : '#E2E8F0'}`, color: T.text }}
+              />
+              {search && (
+                <button onClick={() => setSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 transition-opacity hover:opacity-70"
+                  style={{ color: T.muted }}>
+                  <X className="w-3.5 h-3.5" />
+                </button>
               )}
             </div>
-          </motion.div>
-        ))}
-      </div>
+
+            <div className="flex rounded-[12px] p-1 bg-white border border-slate-200">
+              {[
+                { v: 'grid', icon: <Grid2X2 className="w-4 h-4" /> },
+                { v: 'list', icon: <List className="w-4 h-4" /> },
+              ].map(({ v, icon }) => (
+                <button key={v} onClick={() => setView(v)}
+                  className="p-2 rounded-[8px] transition-all"
+                  style={{
+                    background: view === v ? '#185FA5' : 'transparent',
+                    color: view === v ? '#fff' : T.muted,
+                  }}>
+                  {icon}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Content */}
+      {loading ? (
+        <div className={view === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5' : 'space-y-3'}>
+          {Array(6).fill(0).map((_, i) => <SkeletonCard key={i} />)}
+        </div>
+      ) : data.length === 0 ? (
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-32 space-y-4 bg-white/50 rounded-3xl border border-dashed border-slate-300">
+          <div className="w-16 h-16 rounded-full flex items-center justify-center" style={{ color: T.blueMid }}>
+            <Search className="w-7 h-7" />
+          </div>
+          <p className="text-sm font-medium" style={{ color: T.muted }}>
+            Tidak ada data yang ditemukan.
+          </p>
+          {hasFilter && (
+            <button onClick={clearFilters} className="text-xs font-semibold text-[#185FA5] hover:underline">
+              Hapus pencarian & filter
+            </button>
+          )}
+        </motion.div>
+      ) : view === 'grid' ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <AnimatePresence mode="popLayout">
+            {data.map(item => <InsightGridCard key={item.id_fact_hoaks} item={item} onClick={setSelectedItem} />)}
+          </AnimatePresence>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
+            {data.map(item => <InsightListCard key={item.id_fact_hoaks} item={item} onClick={setSelectedItem} />)}
+          </AnimatePresence>
+        </div>
+      )}
+
+      {/* Render Pop-Up Modal */}
+      <AnimatePresence>
+        {selectedItem && (
+          <DetailModal item={selectedItem} onClose={() => setSelectedItem(null)} />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

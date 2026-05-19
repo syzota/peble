@@ -1,58 +1,134 @@
 /* BARIS 1 WAJIB INI. JANGAN ADA APAPUN DI ATASNYA */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Poppins:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@1,8..60,400..900&display=swap');
+@import url('https://db.onlinewebfonts.com/c/440b53b1a1c65037f944ff19259d8014?family=Nokia+Cellphone+FC+Small');
 @import "tailwindcss";
+
+@font-face {
+    font-family: "Helvetica Regular";
+    src: url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.eot");
+    src: url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.eot?#iefix")format("embedded-opentype"),
+    url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.woff2")format("woff2"),
+    url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.woff")format("woff"),
+    url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.ttf")format("truetype"),
+    url("https://db.onlinewebfonts.com/t/a64ff11d2c24584c767f6257e880dc65.svg#Helvetica Regular")format("svg");
+}
 
 @theme {
   /* Daftarkan identitas font agar class font-heading & font-body di React jalan */
   --font-heading: "Instrument Serif", serif;
-  --font-body: "Inter", sans-serif;
+  --font-body: "Poppins", sans-serif;
+  --font-display: "Poppins", sans-serif;
+  --font-poppins: "Poppins", sans-serif;
+  --font-instrument: "Instrument Serif", serif;
+  --font-serif: "Source Serif 4", serif;
+  --font-sans: "Poppins", sans-serif;
+  --font-inter: "Inter", sans-serif;
+  --font-nokia: "Nokia Cellphone FC Small", monospace;
 
   /* Tambahkan radius default */
-  --radius-default: 9999px;
+  --radius-default: 1rem;
 }
 
 /* Base Styles */
 @layer base {
-  /* Import Google Fonts ditaruh di sini agar tidak merusak urutan import Tailwind */
-  @import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Inter:wght@400;500;600;700&display=swap');
-
   html {
-  scroll-behavior: smooth;
-}
+    scroll-behavior: smooth;
+  }
 
   body {
-    background-color: black;
-    color: white;
-    /* Gunakan variabel yang sudah kita daftarkan di @theme tadi */
-    font-family: var(--font-body);
+    background-color: #f0f9ff;
+    color: #0f172a;
+    font-family: var(--font-poppins);
     -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 }
 
-/* Custom Utilities (Sistem Liquid Glass - LOGIKA AMAN & TIDAK BERUBAH) */
-@layer utilities {
+/* Holographic Card Styles */
+.holographic-card {
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.1s ease-out;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transform-style: preserve-3d;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.1);
+}
+
+.holo-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    circle at var(--x, 50%) var(--y, 50%),
+    rgba(255, 255, 255, 0.6) 0%,
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+  z-index: 1;
+}
+
+.holographic-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: 
+    linear-gradient(110deg, transparent 25%, rgba(255, 255, 255, 0.3) 48%, rgba(255, 255, 255, 0.4) 52%, transparent 75%);
+  background-size: 200% 200%;
+  background-position: var(--bg-x, 50%) var(--bg-y, 50%);
+  mix-blend-mode: color-dodge;
+  opacity: 0.4;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.holo-content {
+  position: relative;
+  z-index: 10;
+}
+
+/* Custom Utilities */
+@utility font-instrument {
+  font-family: "Instrument Serif", serif;
+}
+
+@keyframes shine {
+  0% { background-position: 200% 50%; }
+  100% { background-position: -200% 50%; }
+}
+
+.animate-shine {
+  animation: shine 3s linear infinite;
+}
+
+@utility text-shadow-glow {
+  text-shadow: 0 2px 8px rgba(12, 74, 110, 0.3);
+}
+
+@layer components {
   .liquid-glass {
     background: rgba(255, 255, 255, 0.01);
+    background-blend-mode: luminosity;
     backdrop-filter: blur(4px);
     -webkit-backdrop-filter: blur(4px);
+    border: none;
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.1);
     position: relative;
     overflow: hidden;
   }
-
   .liquid-glass::before {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1.4px;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.45) 0%,
-      rgba(255, 255, 255, 0) 50%,
-      rgba(255, 255, 255, 0.45) 100%
-    );
+    background: linear-gradient(180deg,
+      rgba(255,255,255,0.45) 0%, rgba(255,255,255,0.15) 20%,
+      rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+      rgba(255,255,255,0.15) 80%, rgba(255,255,255,0.45) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;
@@ -60,27 +136,25 @@
 
   .liquid-glass-strong {
     background: rgba(255, 255, 255, 0.01);
+    background-blend-mode: luminosity;
     backdrop-filter: blur(50px);
     -webkit-backdrop-filter: blur(50px);
-    box-shadow: 4px 4px 4px rgba(0, 0, 0, 0.05), inset 0 1px 1px rgba(255, 255, 255, 0.15);
+    border: none;
+    box-shadow: 4px 4px 4px rgba(0,0,0,0.05), inset 0 1px 1px rgba(255,255,255,0.15);
     position: relative;
     overflow: hidden;
   }
-
   .liquid-glass-strong::before {
-    content: "";
+    content: '';
     position: absolute;
     inset: 0;
     border-radius: inherit;
     padding: 1.4px;
-    background: linear-gradient(
-      180deg,
-      rgba(255, 255, 255, 0.5) 0%,
-      rgba(255, 255, 255, 0) 50%,
-      rgba(255, 255, 255, 0.5) 100%
-    );
+    background: linear-gradient(180deg,
+      rgba(255,255,255,0.5) 0%, rgba(255,255,255,0.2) 20%,
+      rgba(255,255,255,0) 40%, rgba(255,255,255,0) 60%,
+      rgba(255,255,255,0.2) 80%, rgba(255,255,255,0.5) 100%);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
     pointer-events: none;

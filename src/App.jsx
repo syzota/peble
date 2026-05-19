@@ -30,7 +30,7 @@ export default function App() {
     <AuthProvider>
       <BrowserRouter>
         <ScrollToTop />
-        <div className="app-container selection:bg-white selection:text-black">
+        <div className="app-container selection:bg-blue-800 selection:text-blue-900">
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />

@@ -14,14 +14,55 @@
 </p>
 
 <p>
-  <a href="https://peble-production.up.railway.app/insight">
+  <a href="https://peble-production.up.railway.app">
     <img src="https://img.shields.io/badge/◉ Live Demo-peble--production.up.railway.app-38BDF8?style=for-the-badge"/>
+  </a>
+  <a href="https://colab.research.google.com/drive/1ja2J7DLHCB-Umh8kIMoW_VTUUEOcToWi#scrollTo=xbS57XTIL3VA">
+    <img src="https://img.shields.io/badge/◉ Open in Colab-ETL Notebook-F9AB00?style=for-the-badge"/>
   </a>
 </p>
 
-> *Sistem informasi eksekutif untuk memantau, menganalisis, dan mengklarifikasi informasi hoaks secara real-time.*
+> *Sistem informasi eksekutif untuk memantau, menganalisis, dan mengklarifikasi informasi hoaks secara real-time — ditenagai oleh data warehouse yang dibangun dari nol.*
+
+<br/>
+
+| 31.000+ | 5 Sumber | 8 Tabel | 2 Layer |
+|:-------:|:--------:|:-------:|:-------:|
+| Total Berita | Media Digital | Star Schema | Frontend + ETL |
 
 </div>
+
+---
+
+## ◆ Daftar Isi
+
+**Bagian I — Aplikasi Fullstack**
+- [Deskripsi Aplikasi](#-deskripsi-aplikasi-)
+- [Fitur Aplikasi](#-fitur-aplikasi-)
+- [Arsitektur & Tech Stack](#-arsitektur--tech-stack-)
+- [Komponen & UI](#-komponen--ui-)
+- [Database Schema](#-database-schema-)
+- [Cara Menjalankan](#-cara-menjalankan-)
+- [Deployment](#-deployment-)
+
+**Bagian II — ETL Pipeline & Data Warehouse**
+- [Tentang Notebook](#-tentang-notebook)
+- [Sumber Data](#-sumber-data)
+- [Alur ETL Pipeline](#-alur-etl-pipeline)
+- [Struktur Data Warehouse](#-struktur-data-warehouse)
+- [Verifikasi & Validasi](#-verifikasi--validasi)
+- [Output File](#-output-file)
+---
+
+<br/>
+<div align="center">
+
+## — BAGIAN I —
+# ✦ Peble Application
+### *Frontend · Backend · Database*
+
+</div>
+<br/>
 
 ---
 
@@ -246,57 +287,6 @@ pebble/
 
 ---
 
-## **Program Flows** ⭑ & Graphical User Interface (GUI) —͟͟͞͞★
-
-### Landing Page ⍟
-> 📌 *Hero sinematik dengan HolographicCard, stats nasional, dan fitur-fitur PRK*
->
-> <!-- INSERT POSTER / SCREENSHOT HERE -->
-
----
-
-### Login Page ⍟
-> 📌 *Form autentikasi dengan validasi role admin/user*
->
-> <!-- INSERT SCREENSHOT HERE -->
-
----
-
-### Dashboard ⍟
-> 📌 *Ringkasan data hoaks, aktivitas terbaru, dan quick stats*
->
-> <!-- INSERT SCREENSHOT HERE -->
-
----
-
-### Insight — Visualisasi Data ⍟
-> 📌 *Chart multi-dimensi: tren hoaks per tahun, distribusi topik, akurasi verifikasi, sumber terpercaya*
->
-> <!-- INSERT SCREENSHOT HERE -->
-
----
-
-### Report ⍟
-> 📌 *Laporan mendalam dengan filter waktu, topik, dan kategori*
->
-> <!-- INSERT SCREENSHOT HERE -->
-
----
-
-### Admin Management ⍟
-> 📌 *Kelola data staff: tambah, edit, hapus, atur role admin/user*
->
-> <!-- INSERT SCREENSHOT HERE -->
-
----
-
-### Poster ⍟
-> 📌 *Poster Pebble PRK Data Center*
->
-> <!-- INSERT POSTER HERE -->
-
----
-
 ## **Cara Menjalankan** ᯓ★
 
 ### Setup ⍟
@@ -326,6 +316,7 @@ npm run build
 ```bash
 node server.js
 ```
+
 ---
 
 ## **Deployment** ⊹ ࣪ ˖ ✔
@@ -341,9 +332,362 @@ Aplikasi di-deploy ke **Railway.app** secara otomatis dari branch `main`.
 
 ---
 
+<br/>
 <div align="center">
 
-*© 2026 · Peble · BEM-KM Universitas Mulawarman*
+## — BAGIAN II —
+# ◈ ETL Pipeline & Data Warehouse
+### *Dari Raw CSV Berita Hoaks → Star Schema Siap Deploy*
+
+<p>
+  <img src="https://img.shields.io/badge/Python-3.x-3776AB?style=for-the-badge&logo=python&logoColor=white"/>
+  <img src="https://img.shields.io/badge/pandas-ETL-150458?style=for-the-badge&logo=pandas&logoColor=white"/>
+  <img src="https://img.shields.io/badge/Google_Colab-Notebook-F9AB00?style=for-the-badge&logo=googlecolab&logoColor=white"/>
+  <img src="https://img.shields.io/badge/MySQL-SQL_Dump-4479A1?style=for-the-badge&logo=mysql&logoColor=white"/>
+</p>
+
+> *Kalau Peble adalah wajahnya — notebook ini adalah otaknya.*
+
+</div>
+<br/>
+
+---
+
+## ▸ Tentang Notebook
+
+Notebook ini adalah **backend ETL engine** dari Peble. Tugasnya: ambil data berita hoaks dari 5 sumber media yang formatnya berbeda-beda, bersihkan, seragamkan, integrasikan, lalu bangun data warehouse berbasis **Star Schema** yang menjadi fondasi seluruh analisis di dashboard.
+
+**Pertanyaan yang dijawab:**
+
+- Bagaimana mengintegrasikan data dari 5 sumber media yang berbeda struktur kolom, format tanggal, dan encoding-nya?
+- Bagaimana membangun Star Schema yang konsisten untuk analisis hoaks multidimensi?
+- Bagaimana menghasilkan SQL dump yang langsung bisa di-import ke MySQL production?
+
+---
+
+## ▸ Sumber Data
+
+Lima dataset dari media digital Indonesia, dikumpulkan dan diproses dalam satu pipeline terpadu.
+
+| Dataset | Format | Peran di DW |
+|---------|:------:|-------------|
+| **Komdigi** | CSV | Sumber klarifikasi resmi pemerintah |
+| **CNN Indonesia** | XLSX | Berita digital nasional |
+| **Kompas** | XLSX | Berita cetak & digital terpercaya |
+| **Tempo** | XLSX | Jurnalisme investigatif |
+| **TurnBackHoax** | XLSX | Database hoaks terverifikasi |
+
+### Tantangan Nyata di Lapangan
+
+Setiap dataset punya "kepribadian" sendiri yang bikin preprocessing jadi seru:
+
+| Masalah | Contoh |
+|---------|--------|
+| Nama kolom beda-beda | `title` vs `judul` vs `Title` |
+| Format tanggal kacau | ISO 8601, format Indonesia, sampai yang nggak jelas |
+| Multi-value tags | Satu berita = banyak tag, dipisah `;` |
+| Missing values | Kolom `tag`, `kategori`, `topik` sering bolong |
+
+---
+
+## ▸ Arsitektur ETL
+
+```
+┌──────────────────────────────────┐
+│         5 Source Datasets         │
+│  Komdigi · CNN · Kompas · Tempo   │
+│         · TurnBackHoax            │
+└────────────────┬─────────────────┘
+                 │  Extract
+                 ▼
+┌──────────────────────────────────┐
+│       Google Colab Notebook       │
+│                                   │
+│  ① Setup & Extract               │
+│  ② Data Understanding            │
+│  ③ Preprocessing & Transform     │
+│  ④ Integrasi Dataset             │
+│  ⑤ Build Dimension Tables        │
+│  ⑥ Generate Fact Table          │
+│  ⑦ Export ke SQL                 │
+│  ⑧ Verifikasi & Validasi        │
+└────────────────┬─────────────────┘
+                 │  Load
+                 ▼
+┌──────────────────────────────────┐
+│      Star Schema · MySQL/SQLite   │
+│   7 Dim Tables + 1 Fact Table    │
+│   → eis_mysql_final.sql          │
+│   → fact_[tahun].sql per tahun   │
+└────────────────┬─────────────────┘
+                 │  Seed
+                 ▼
+┌──────────────────────────────────┐
+│    Peble EIS — React Dashboard    │
+│  peble-production.up.railway.app  │
+└──────────────────────────────────┘
+```
+
+---
+
+## ▸ Alur ETL Pipeline
+
+### ① Setup & Extract
+
+```python
+import pandas as pd
+import numpy as np
+
+df_komdigi  = pd.read_csv('/content/komdigi_hoaks.csv')
+df_cnn      = pd.read_excel('/content/dataset_cnn_10k_cleaned.xlsx')
+df_kompas   = pd.read_excel('/content/dataset_kompas_4k_cleaned.xlsx')
+df_tempo    = pd.read_excel('/content/dataset_tempo_6k_cleaned.xlsx')
+df_turnback = pd.read_excel('/content/dataset_turnbackhoax_10_cleaned.xlsx')
+```
+
+---
+
+### ② Data Understanding
+
+Sebelum sentuh data, pahami dulu kondisi lapangan. Pemeriksaan meliputi:
+
+- **Shape & Kolom** — berapa baris, berapa kolom, namanya apa saja
+- **Missing Values** — kolom mana yang bolong, seberapa parah
+- **Tipe Data** — apakah sudah sesuai untuk analisis
+- **Format Tanggal** — `published_at` vs `Timestamp`, berapa variasinya
+- **Variasi Tag** — adakah multi-value dengan delimiter `;`
+
+```python
+for nama, df in datasets.items():
+    print(f"DATASET : {nama}")
+    print(f"Shape   : {df.shape}")
+    print(df.isnull().sum())
+    display(df.head())
+```
+
+---
+
+### ③ Preprocessing & Transform
+
+**Penambahan Kolom Sumber**
+```python
+df_komdigi['sumber']  = 'Komdigi'
+df_cnn['sumber']      = 'CNN'
+df_kompas['sumber']   = 'Kompas'
+df_tempo['sumber']    = 'Tempo'
+df_turnback['sumber'] = 'TurnBackHoax'
+```
+
+**Harmonisasi Nama Kolom** — menyamakan 5 struktur berbeda ke satu standar:
+
+| Sebelum | Sesudah |
+|---------|---------|
+| `title`, `Title` | `judul` |
+| `body_text`, `fulltext` | `isi` |
+| `published_at`, `Timestamp` | `tanggal` |
+| `url` | `link` |
+| `tags`, `Tags` | `tag` |
+| `category` | `kategori_asli` |
+
+```python
+def harmonisasi_kolom(df):
+    df.columns = df.columns.str.lower()
+    mapping = {
+        'title': 'judul', 'body_text': 'isi', 'fulltext': 'isi',
+        'published_at': 'tanggal', 'timestamp': 'tanggal',
+        'url': 'link', 'tags': 'tag',
+        'category': 'kategori_asli', 'hoax': 'label_hoaks'
+    }
+    return df.rename(columns=mapping)
+```
+
+**Parsing Tanggal Fleksibel** — menangani variasi format tanggal dari semua sumber secara otomatis.
+
+**Fungsi `clean_tags()`** — memecah multi-value tag, strip whitespace, dan standarisasi ke lowercase.
+
+---
+
+### ④ Integrasi Dataset
+
+```python
+df_hoaks = pd.concat(
+    [df_komdigi_clean, df_cnn_clean, df_kompas_clean,
+     df_tempo_clean, df_turnback_clean],
+    ignore_index=True
+)
+
+df_hoaks['id_berita'] = range(1, len(df_hoaks) + 1)
+```
+
+Setelah digabung, dibuat fitur tambahan: `tahun`, `bulan`, `panjang_isi`.
+
+---
+
+### ⑤ Build Dimension Tables
+
+Tujuh tabel dimensi dibangun dari master dataset:
+
+**`dim_sumber`** — identitas media sumber berita
+
+**`dim_berita`** — konten artikel: judul, isi, excerpt, link, author, image, view_count
+
+**`dim_tag`** — seluruh tag unik dari semua berita (hasil explode dari multi-value)
+
+**`dim_waktu`** — dimensi kalender lengkap
+
+```python
+dim_waktu['hari']       = dim_waktu['tanggal'].dt.day
+dim_waktu['nama_hari']  = dim_waktu['tanggal'].dt.day_name()
+dim_waktu['bulan']      = dim_waktu['tanggal'].dt.month
+dim_waktu['nama_bulan'] = dim_waktu['tanggal'].dt.month_name()
+dim_waktu['tahun']      = dim_waktu['tanggal'].dt.year
+dim_waktu['quarter']    = dim_waktu['tanggal'].dt.quarter
+```
+
+**`dim_kategori`** — klasifikasi jenis konten berita
+
+**`dim_topik`** — topik berita (Kesehatan, Politik, Bencana, dll.)
+
+**`dim_status_hoaks`** — label: `Hoaks` / `Verifikasi` / `Unknown`
+
+---
+
+### ⑥ Generate Fact Table
+
+Join semua foreign key dari tabel dimensi ke satu fact table, lalu di-explode per tag karena satu berita bisa punya banyak tag.
+
+```python
+fact_hoaks = (fact_temp
+    .merge(dim_berita,   on='id_berita',  how='left')
+    .merge(dim_sumber,   on='sumber',     how='left')
+    .merge(dim_kategori, on='kategori',   how='left')
+    .merge(dim_topik,    on='topics',     how='left')
+    .merge(dim_waktu,    on='tanggal',    how='left')
+)
+```
+
+Setiap kombinasi `(id_berita, id_tag)` menjadi satu baris unik di fact table.
+
+**Measures:**
+
+| Measure | Tipe | Keterangan |
+|---------|:----:|------------|
+| `jumlah` | INT | Hitungan berita (selalu 1) |
+| `panjang_isi` | INT | Panjang karakter isi berita |
+
+---
+
+### ⑦ Export ke SQL
+
+```python
+def sql_safe(value):
+    # escape karakter khusus SQL
+    ...
+
+def mysql_dtype(col, dtype):
+    # mapping dtype pandas → MySQL
+    if col.startswith('id_'):   return 'INT'
+    if 'tanggal' in col:        return 'DATETIME'
+    if 'jumlah' in col:         return 'INT'
+    return 'LONGTEXT'
+
+def export_mysql_sql(df, table_name, file_name, create_table=True):
+    # generate CREATE TABLE + INSERT INTO
+    ...
+```
+
+Fact table juga dieksport terpisah per tahun untuk manajemen data skala besar:
+
+```python
+for tahun in years:
+    temp = fact_export[fact_export['tahun'] == tahun]
+    export_mysql_sql(temp, 'fact_hoaks', f'fact_{int(tahun)}.sql')
+```
+
+---
+
+## ▸ Struktur Data Warehouse
+
+Model **Star Schema** — satu fact table di tengah, dikelilingi tujuh tabel dimensi.
+
+```
+                         ┌──────────────┐
+                         │  dim_sumber  │
+                         └──────┬───────┘
+                                │ id_sumber
+              ┌─────────────────▼──────────────────┐
+              │             fact_hoaks              │
+              │                                     │
+              │  id_fact_hoaks (PK)                 │
+              │  id_berita · id_tag · id_waktu      │
+              │  id_sumber · id_topik               │
+              │  id_kategori · id_status_hoaks      │
+              │  jumlah · panjang_isi               │
+              └───┬──────┬───────┬────────┬─────────┘
+                  │      │       │        │
+    ┌─────────────▼─┐ ┌──▼───┐ ┌▼──────┐ ┌▼──────────────┐
+    │   dim_berita  │ │dim_  │ │dim_   │ │   dim_waktu   │
+    │               │ │tag   │ │topik  │ │               │
+    └───────────────┘ └──────┘ └───────┘ └───────────────┘
+              ┌──────────────┐  ┌─────────────────────┐
+              │ dim_kategori │  │  dim_status_hoaks   │
+              └──────────────┘  └─────────────────────┘
+```
+
+| Tabel | Jenis | Keterangan |
+|-------|:-----:|------------|
+| `fact_hoaks` | Fakta | Satu baris per kombinasi berita × tag |
+| `dim_berita` | Dimensi | Konten artikel lengkap |
+| `dim_sumber` | Dimensi | Identitas media (Komdigi, CNN, Kompas, Tempo, TurnBackHoax) |
+| `dim_tag` | Dimensi | Semua tag unik dari seluruh berita |
+| `dim_waktu` | Dimensi | Kalender: hari, bulan, tahun, quarter |
+| `dim_kategori` | Dimensi | Klasifikasi kategori berita |
+| `dim_topik` | Dimensi | Topik konten (Kesehatan, Politik, dll.) |
+| `dim_status_hoaks` | Dimensi | Label: Hoaks / Verifikasi / Unknown |
+
+---
+
+## ▸ Verifikasi & Validasi
+
+```python
+# 1. Missing Value
+print(fact_hoaks.isnull().sum())
+
+# 2. Jumlah Record
+print(len(fact_hoaks))
+
+# 3. Nol Duplikasi
+duplicate_fact = fact_hoaks.duplicated(subset=['id_berita', 'id_tag']).sum()
+print(f"Duplicate: {duplicate_fact}")  # target: 0
+
+# 4. Konsistensi Unique Key
+assert len(fact_hoaks) == fact_hoaks[['id_berita','id_tag']].drop_duplicates().shape[0]
+
+# 5. Distribusi Sumber
+df_hoaks['sumber'].value_counts()
+```
+
+---
+
+## ▸ Output File
+
+| File | Isi |
+|------|-----|
+| `eis_mysql_final.sql` | Seluruh tabel dalam satu SQL dump |
+| `dim_berita.sql` · `dim_sumber.sql` · `dim_waktu.sql` · ... | Satu file per tabel dimensi |
+| `fact_hoaks.sql` | Full fact table |
+| `fact_[tahun].sql` | Fact table dipartisi per tahun |
+
+---
+
+> **Mata Kuliah** — Business Intelligence  
+> **Program Studi** — Sistem Informasi · Fakultas Teknik · Universitas Mulawarman · 2025/2026
+
+---
+
+<div align="center">
+
+*© 2026 · Peble*
 
 **✦ pebble · research · data · insight ✦**
 

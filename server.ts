@@ -8,12 +8,16 @@ dotenv.config();
 
 // ─── MySQL Pool ───────────────────────────────────────────────────────────────
 const pool = mysql.createPool({
-  host: "localhost",
-  user: "root",
-  password: "",
-  database: "bimbim",
+  host: process.env.MYSQL_HOST,
+  port: Number(process.env.MYSQL_PORT) || 3306,
+  user: process.env.MYSQL_USER,
+  password: process.env.MYSQL_PASSWORD,
+  database: process.env.MYSQL_DATABASE,
   waitForConnections: true,
   connectionLimit: 10,
+  ssl: {
+    rejectUnauthorized: false,
+  },
 });
 
 pool.getConnection()
@@ -26,7 +30,7 @@ const q = (sql: string, params: unknown[] = []) =>
 // ─── Express App ─────────────────────────────────────────────────────────────
 async function startServer() {
   const app = express();
-  const PORT = 3000;
+  const PORT = process.env.PORT || 3000;
 
   app.use(express.json());
 

@@ -31,7 +31,7 @@
 
 Sistem memiliki dua jenis pengguna: **Admin** yang mengelola seluruh database hoaks, berita, dan staff, serta **User** yang dapat mengakses dashboard insight dan laporan secara real-time.
 
-> ◉ Live: [https://peble-production.up.railway.app/insight](https://peble-production.up.railway.app/insight)  
+> ◉ Live: [https://peble-production.up.railway.app](https://peble-production.up.railway.app)  
 > ◉ Dibangun untuk: Masyarakat · 2026
 
 ---
